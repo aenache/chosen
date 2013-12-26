@@ -4,6 +4,7 @@ $.fn.extend({
   chosen: (options) ->
     # Do no harm and return as soon as possible for unsupported browsers, namely IE6 and IE7
     # Continue on if running IE document type but in compatibility mode
+    # return this unless AbstractChosen.browser_is_supported()
     return this unless AbstractChosen.browser_is_supported()
     this.each (input_field) ->
       $this = $ this
@@ -17,12 +18,13 @@ $.fn.extend({
 
 })
 
-class Chosen extends AbstractChosen
 
+class Chosen extends AbstractChosen
   setup: ->
     @form_field_jq = $ @form_field
     @current_selectedIndex = @form_field.selectedIndex
     @is_rtl = @form_field_jq.hasClass "chosen-rtl"
+    @first = true
 
   set_up_html: ->
     container_classes = ["chosen-container"]
@@ -173,26 +175,32 @@ class Chosen extends AbstractChosen
 
   results_build: ->
     @parsing = true
-    @selected_option_count = null
+
+    if @enable_external_model
+      @model.populate_DOM(@form_field, this.get_search_text())
 
     @results_data = SelectParser.select_to_array @form_field
 
-    if @is_multiple
-      @search_choices.find("li.search-choice").remove()
-    else if not @is_multiple
-      this.single_set_selected_text()
-      if @disable_search or @form_field.options.length <= @disable_search_threshold
-        @search_field[0].readOnly = true
-        @container.addClass "chosen-container-single-nosearch"
-      else
-        @search_field[0].readOnly = false
-        @container.removeClass "chosen-container-single-nosearch"
+    @selected_option_count = null
 
-    this.update_results_content this.results_option_build({first:true})
+    if @first
+      if @is_multiple
+        @search_choices.find("li.search-choice").remove()
+      else if not @is_multiple
+        this.single_set_selected_text()
+        if @disable_search or @form_field.options.length <= @disable_search_threshold
+          @search_field[0].readOnly = true
+          @container.addClass "chosen-container-single-nosearch"
+        else
+          @search_field[0].readOnly = false
+          @container.removeClass "chosen-container-single-nosearch"
 
-    this.search_field_disabled()
-    this.show_search_field_default()
-    this.search_field_scale()
+      this.update_results_content
+      this.results_option_build({first:@first})
+      this.search_field_disabled()
+      this.show_search_field_default()
+      this.search_field_scale()
+      @first = false
 
     @parsing = false
 
@@ -495,3 +503,5 @@ class Chosen extends AbstractChosen
         w = f_width - 10
 
       @search_field.css({'width': w + 'px'})
+
+
